@@ -96,24 +96,36 @@ func (gh *GitHub) ListBranches(ctx context.Context, owner, repo string) ([]*mode
 						} `graphql:"... on Commit"`
 					}
 				}
-			} `graphql:"refs(last: $last, refPrefix: $refPrefix)"`
+				PageInfo struct {
+					EndCursor   string
+					HasNextPage bool
+				}
+			} `graphql:"refs(first: $first, after: $after, refPrefix: $refPrefix)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
 
 	variables := map[string]interface{}{
 		"owner":     githubv4.String(owner),
 		"name":      githubv4.String(repo),
-		"last":      githubv4.Int(100),
 		"refPrefix": githubv4.String("refs/heads/"),
-	}
-
-	if err := gh.clientV4.Query(ctx, &query, variables); err != nil {
-		return nil, err
+		"first":     githubv4.Int(100),
+		"after":     (*githubv4.String)(nil),
 	}
 
 	var out []*models.GitHubBranch
-	for _, n := range query.Repository.Refs.Nodes {
-		out = append(out, &models.GitHubBranch{Name: n.Name, LastCommitDate: n.Target.Commit.CommittedDate, Id: n.Id})
+	for {
+		if err := gh.clientV4.Query(ctx, &query, variables); err != nil {
+			return nil, err
+		}
+
+		for _, n := range query.Repository.Refs.Nodes {
+			out = append(out, &models.GitHubBranch{Name: n.Name, LastCommitDate: n.Target.Commit.CommittedDate, Id: n.Id})
+		}
+
+		if !query.Repository.Refs.PageInfo.HasNextPage {
+			break
+		}
+		variables["after"] = githubv4.String(query.Repository.Refs.PageInfo.EndCursor)
 	}
 	return out, nil
 }
