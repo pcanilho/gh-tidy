@@ -5,6 +5,7 @@ import (
 	"github.com/pcanilho/gh-tidy/api"
 	"github.com/pcanilho/gh-tidy/output"
 	"github.com/spf13/cobra"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -19,6 +20,8 @@ var (
 // commands
 var (
 	staleThreshold time.Duration
+	excludePattern string
+	excludeRegex   *regexp.Regexp
 	owner          string
 	format         string
 	remove         bool
@@ -36,6 +39,14 @@ var rootCmd = &cobra.Command{
 			serializer = new(output.YamlSerializer)
 		default:
 			return fmt.Errorf("the provided format [%v] is not supported", format)
+		}
+
+		// Patterns
+		if len(excludePattern) > 0 {
+			excludeRegex, err = regexp.Compile(excludePattern)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Internal :: Session

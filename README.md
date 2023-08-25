@@ -72,6 +72,11 @@ Global Flags:
    $ gh tidy stale branches <owner/repository> -t 128h --rm
    ```
 
+* <ins>Delete</ins> all branches with `stale` commits for the last `128 hours` excluding branch names with a pattern (regex):
+   ```shell
+   $ gh tidy stale branches <owner/repository> -t 128h --exclude '<regex>' --rm
+   ```
+
 #### `Close`
 
 * <ins>Close</ins> all PRs with `stale` commits for the last `128 hours`:

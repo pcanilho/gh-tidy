@@ -38,6 +38,10 @@ var staleBranchesCmd = &cobra.Command{
 		for repo, branches := range view {
 			var filteredBranches []*models.GitHubBranch
 			for _, branch := range branches {
+				if excludeRegex != nil && excludeRegex.MatchString(branch.Name) {
+					continue
+				}
+
 				if branch.LastCommitDate.Before(time.Now().Add(-staleThreshold)) {
 					filteredBranches = append(filteredBranches, branch)
 				}
@@ -81,5 +85,5 @@ var staleBranchesCmd = &cobra.Command{
 }
 
 func init() {
-	staleBranchesCmd.PersistentFlags().DurationVarP(&staleThreshold, "threshold", "t", time.Hour*24*7*4, "The stale threshold value. [1 month]")
+	staleBranchesCmd.PersistentFlags().StringVar(&excludePattern, "exclude", "", "If provided, it will be used to exclude branches that match the pattern (regexp)")
 }
