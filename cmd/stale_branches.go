@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/pcanilho/gh-tidy/api"
 	"github.com/pcanilho/gh-tidy/helpers"
 	"github.com/pcanilho/gh-tidy/models"
 	"github.com/spf13/cobra"
@@ -17,7 +18,7 @@ var staleBranchesCmd = &cobra.Command{
 		if len(args) < 1 {
 			return fmt.Errorf("at least one <owner>/<repository> needs to be provided")
 		}
-		view := make(map[string][]*models.GitHubBranch)
+		view := make(map[string][]*models.GitHubRef)
 		for _, repo := range args {
 			if len(owner) == 0 && strings.Contains(repo, "/") {
 				composite := strings.Split(repo, "/")
@@ -28,7 +29,7 @@ var staleBranchesCmd = &cobra.Command{
 			if len(owner) == 0 {
 				return fmt.Errorf("the [owner] flag must be provided")
 			}
-			brs, err := ghApi.ListBranches(cmd.Context(), owner, repo)
+			brs, err := ghApi.ListRefs(cmd.Context(), owner, repo, api.BranchRefType)
 			if err != nil {
 				return err
 			}
@@ -36,7 +37,7 @@ var staleBranchesCmd = &cobra.Command{
 		}
 
 		for repo, branches := range view {
-			var filteredBranches []*models.GitHubBranch
+			var filteredBranches []*models.GitHubRef
 			for _, branch := range branches {
 				if excludeRegex != nil && excludeRegex.MatchString(branch.Name) {
 					continue
@@ -49,21 +50,13 @@ var staleBranchesCmd = &cobra.Command{
 			view[repo] = filteredBranches
 		}
 		out = view
-		//if len(args) == 1 {
-		//	repo := args[0]
-		//	if strings.Contains(repo, "/") {
-		//		repo = strings.Split(repo, "/")[1]
-		//	}
-		//	out = view[repo]
-		//}
-
 		return nil
 	},
 	PostRunE: func(cmd *cobra.Command, args []string) error {
 		if out == nil {
 			return fmt.Errorf("no results found")
 		}
-		view := out.(map[string][]*models.GitHubBranch)
+		view := out.(map[string][]*models.GitHubRef)
 		if remove {
 			for repo, branches := range view {
 				if !force {

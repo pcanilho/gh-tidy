@@ -83,7 +83,14 @@ func (gh *GitHub) ListPRs(ctx context.Context, states []string, owner, repo stri
 	return out, nil
 }
 
-func (gh *GitHub) ListBranches(ctx context.Context, owner, repo string) ([]*models.GitHubBranch, error) {
+type RefType = string
+
+const (
+	BranchRefType RefType = "refs/heads/"
+	TagRefType            = "refs/tags/"
+)
+
+func (gh *GitHub) ListRefs(ctx context.Context, owner, repo string, refType RefType) ([]*models.GitHubRef, error) {
 	var query struct {
 		Repository struct {
 			Refs struct {
@@ -94,6 +101,11 @@ func (gh *GitHub) ListBranches(ctx context.Context, owner, repo string) ([]*mode
 						Commit struct {
 							CommittedDate time.Time
 						} `graphql:"... on Commit"`
+						Tag struct {
+							Tagger struct {
+								Date time.Time
+							}
+						} `graphql:"... on Tag"`
 					}
 				}
 				PageInfo struct {
@@ -107,19 +119,29 @@ func (gh *GitHub) ListBranches(ctx context.Context, owner, repo string) ([]*mode
 	variables := map[string]interface{}{
 		"owner":     githubv4.String(owner),
 		"name":      githubv4.String(repo),
-		"refPrefix": githubv4.String("refs/heads/"),
+		"refPrefix": githubv4.String(refType),
 		"first":     githubv4.Int(100),
 		"after":     (*githubv4.String)(nil),
 	}
 
-	var out []*models.GitHubBranch
+	var out []*models.GitHubRef
 	for {
 		if err := gh.clientV4.Query(ctx, &query, variables); err != nil {
 			return nil, err
 		}
 
 		for _, n := range query.Repository.Refs.Nodes {
-			out = append(out, &models.GitHubBranch{Name: n.Name, LastCommitDate: n.Target.Commit.CommittedDate, Id: n.Id})
+			commitDate := n.Target.Commit.CommittedDate
+			tagDate := n.Target.Tag.Tagger.Date
+
+			model := &models.GitHubRef{Name: n.Name, Id: n.Id}
+			if !commitDate.IsZero() {
+				model.LastCommitDate = &commitDate
+			}
+			if !tagDate.IsZero() {
+				model.TagDate = &tagDate
+			}
+			out = append(out, model)
 		}
 
 		if !query.Repository.Refs.PageInfo.HasNextPage {

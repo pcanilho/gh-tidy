@@ -33,6 +33,8 @@ The `gh-tidy` project is an extension for the standard `gh` cli that aims at off
 Examples:
 $ gh tidy stale branches <owner/repo> -t 72h
 $ gh tidy stale prs      <owner/repo> -t 72h -s OPEN -s MERGED
+$ gh tidy stale tags     <owner/repo> -t 72h
+$ gh tidy delete         <owner/repo> -t 72h --ref <branch_name> --ref <tag_name>
 
 Flags:
   -f, --force               If specified, all interactive operations will be disabled
@@ -75,6 +77,11 @@ Global Flags:
 * <ins>Delete</ins> all branches with `stale` commits for the last `128 hours` excluding branch names with a pattern (regex):
    ```shell
    $ gh tidy stale branches <owner/repository> -t 128h --exclude '<regex>' --rm
+   ```
+
+* <ins>Delete</ins> all tags with a `stale` ref for the last `128 hours`:
+   ```shell
+   $ gh tidy stale tags <owner/repository> -t 128h --rm
    ```
 
 #### `Close`

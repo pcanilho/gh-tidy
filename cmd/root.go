@@ -22,6 +22,7 @@ var (
 	staleThreshold time.Duration
 	excludePattern string
 	excludeRegex   *regexp.Regexp
+	refs           []string
 	owner          string
 	format         string
 	remove         bool
@@ -57,6 +58,9 @@ var rootCmd = &cobra.Command{
 		return nil
 	},
 	PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
+		if out == nil || len(strings.TrimSpace(fmt.Sprintf("%v", out))) == 0 {
+			return nil
+		}
 		content, err := serializer.Serialize(out)
 		if err != nil {
 			return fmt.Errorf("[INTERNAL] unable to serialise output. Error: %v", err)
@@ -85,6 +89,8 @@ func init() {
 
 	staleCmd.AddCommand(staleBranchesCmd)
 	staleCmd.AddCommand(stalePrsCmd)
+	staleCmd.AddCommand(staleTagsCmd)
 
 	rootCmd.AddCommand(staleCmd)
+	rootCmd.AddCommand(deleteRefCmd)
 }
