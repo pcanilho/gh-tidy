@@ -31,6 +31,11 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use: "gh-tidy",
+	Example: `# direnv allow || read -s GITHUB_TOKEN; export GITHUB_TOKEN
+$ gh tidy stale branches <owner/repo> -t 72h
+$ gh tidy stale prs      <owner/repo> -t 72h -s OPEN -s MERGED
+$ gh tidy stale tags     <owner/repo> -t 72h
+$ gh tidy delete         <owner/repo> -t 72h --ref <branch_name> --ref <tag_name>`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) (err error) {
 		// Format
 		switch strings.TrimSpace(strings.ToLower(format)) {
