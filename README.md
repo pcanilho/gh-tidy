@@ -2,10 +2,19 @@
 
 [![Actions Status: Release](https://github.com/pcanilho/gh-tidy/workflows/release/badge.svg)](https://github.com/pcanilho/gh-tidy/actions?query=release)
 
-The `gh-tidy` project is an extension for the standard `gh` cli that aims at offering tidy/cleanup operations on existing `refs`
+The `gh-tidy` project is a tiny & simple extension for the standard `gh` cli that aims at offering tidy/cleanup operations on existing `refs`
 (in either `branch` or `PR` format) by providing rules, such as `stale` status based on last commit date for a given branch, PR activity and others.
 
-🚀 This project is entirely built upon GitHub's `graphql` API offered via the https://github.com/shurcooL/githubv4 project.
+ℹ️ This is a utility project that I have been extending when needed on a best-effort basis. Feel free to contribute with a PR
+or open an Issue on GitHub.
+
+📝 TODOs (for lack of time on my side):
+* API:
+  * Automatic rate limiting handling
+  * Calls batching
+  * Support GitHub Enterprise
+* Branches:
+  * Detect if branch has already been merged 
 
 ---
 
@@ -25,7 +34,7 @@ The `gh-tidy` project is an extension for the standard `gh` cli that aims at off
    $ gh tidy --help
    ```
 
-\* This can be a `PAT`, a GitHub App installation `access_token` or any other format compatible with the `oauth2.StaticTokenSource` OAuth2 client.
+\* This can be a `PAT`, a GitHub App installation `access_token` or any other format that allows `api.github.com` access.
 
 **Note**: Authentication through direct GitHub App PEM is not (yet) supported.
 ### Usage

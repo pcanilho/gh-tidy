@@ -2,13 +2,14 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/google/go-github/github"
-	"github.com/pcanilho/gh-tidy/models"
 	"github.com/shurcooL/githubv4"
 	"golang.org/x/oauth2"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -30,7 +31,7 @@ func NewSession() (*GitHub, error) {
 	tc := oauth2.NewClient(ctx, ts)
 	return &GitHub{clientV3: github.NewClient(tc), clientV4: githubv4.NewClient(tc)}, nil
 }
-func (gh *GitHub) ListPRs(ctx context.Context, states []string, owner, repo string) ([]*models.GitHubPR, error) {
+func (gh *GitHub) ListPRs(ctx context.Context, states []string, owner, repo string) ([]*GitHubPR, error) {
 	var query struct {
 		Repository struct {
 			PullRequests struct {
@@ -50,7 +51,11 @@ func (gh *GitHub) ListPRs(ctx context.Context, states []string, owner, repo stri
 					BaseRefName string
 					HeadRefName string
 				}
-			} `graphql:"pullRequests(states: $states, last: $last)"`
+				PageInfo struct {
+					EndCursor   string
+					HasNextPage bool
+				}
+			} `graphql:"pullRequests(first: $first, after: $after, states: $states)"`
 		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
 
@@ -61,24 +66,31 @@ func (gh *GitHub) ListPRs(ctx context.Context, states []string, owner, repo stri
 	variables := map[string]interface{}{
 		"owner":  githubv4.String(owner),
 		"name":   githubv4.String(repo),
-		"last":   githubv4.Int(100),
+		"first":  githubv4.Int(100),
+		"after":  (*githubv4.String)(nil),
 		"states": sts,
 	}
+	var out []*GitHubPR
 
-	if err := gh.clientV4.Query(ctx, &query, variables); err != nil {
-		return nil, err
-	}
+	for {
+		if err := gh.clientV4.Query(ctx, &query, variables); err != nil {
+			return nil, err
+		}
 
-	var out []*models.GitHubPR
-	for _, pr := range query.Repository.PullRequests.Nodes {
-		out = append(out, &models.GitHubPR{
-			Source:         pr.HeadRefName,
-			Target:         pr.BaseRefName,
-			LastCommitDate: pr.Commits.Nodes[0].Commit.CommittedDate,
-			Id:             pr.Id,
-			Number:         pr.Commits.Nodes[0].PullRequest.Number,
-			Url:            pr.Commits.Nodes[0].PullRequest.Url,
-		})
+		for _, pr := range query.Repository.PullRequests.Nodes {
+			out = append(out, &GitHubPR{
+				Source:         pr.HeadRefName,
+				Target:         pr.BaseRefName,
+				LastCommitDate: pr.Commits.Nodes[0].Commit.CommittedDate,
+				Id:             pr.Id,
+				Number:         pr.Commits.Nodes[0].PullRequest.Number,
+				Url:            pr.Commits.Nodes[0].PullRequest.Url,
+			})
+		}
+		if !query.Repository.PullRequests.PageInfo.HasNextPage {
+			break
+		}
+		variables["after"] = githubv4.String(query.Repository.PullRequests.PageInfo.EndCursor)
 	}
 	return out, nil
 }
@@ -90,7 +102,7 @@ const (
 	TagRefType            = "refs/tags/"
 )
 
-func (gh *GitHub) ListRefs(ctx context.Context, owner, repo string, refType RefType) ([]*models.GitHubRef, error) {
+func (gh *GitHub) ListRefs(ctx context.Context, owner, repo string, refType RefType) ([]*GitHubRef, error) {
 	var query struct {
 		Repository struct {
 			Refs struct {
@@ -124,7 +136,7 @@ func (gh *GitHub) ListRefs(ctx context.Context, owner, repo string, refType RefT
 		"after":     (*githubv4.String)(nil),
 	}
 
-	var out []*models.GitHubRef
+	var out []*GitHubRef
 	for {
 		if err := gh.clientV4.Query(ctx, &query, variables); err != nil {
 			return nil, err
@@ -134,7 +146,7 @@ func (gh *GitHub) ListRefs(ctx context.Context, owner, repo string, refType RefT
 			commitDate := n.Target.Commit.CommittedDate
 			tagDate := n.Target.Tag.Tagger.Date
 
-			model := &models.GitHubRef{Name: n.Name, Id: n.Id}
+			model := &GitHubRef{Name: n.Name, Id: n.Id}
 			if !commitDate.IsZero() {
 				model.LastCommitDate = &commitDate
 			}
@@ -152,9 +164,9 @@ func (gh *GitHub) ListRefs(ctx context.Context, owner, repo string, refType RefT
 	return out, nil
 }
 
-func (gh *GitHub) DeleteRefs(ctx context.Context, refs ...string) ([]string, error) {
+func (gh *GitHub) DeleteRefs(ctx context.Context, refs ...string) error {
 	if refs == nil || len(refs) == 0 {
-		return nil, fmt.Errorf("no refs have been specified")
+		return fmt.Errorf("no refs have been specified")
 	}
 
 	var mutation struct {
@@ -163,20 +175,34 @@ func (gh *GitHub) DeleteRefs(ctx context.Context, refs ...string) ([]string, err
 		} `graphql:"deleteRef(input: {refId: $input})"`
 	}
 
-	var out []string
+	ec := make(chan error, len(refs))
+	var wg sync.WaitGroup
+	wg.Add(len(refs))
+	go func() {
+		wg.Wait()
+		close(ec)
+	}()
+
 	for _, ref := range refs {
-		if err := gh.clientV4.Mutate(ctx, &mutation, githubv4.Input(ref), nil); err != nil {
-			return out, err
-		}
-		out = append(out, mutation.DeleteRef.Typename)
+		go func(r string) {
+			reqErr := gh.clientV4.Mutate(ctx, &mutation, githubv4.Input(r), nil)
+			if reqErr != nil {
+				ec <- fmt.Errorf("unable to delete ref: %v. error: %v", r, reqErr)
+			}
+			wg.Done()
+		}(ref)
 	}
 
-	return out, nil
+	var err error
+	for e := range ec {
+		err = errors.Join(err, e)
+	}
+	return err
 }
 
-func (gh *GitHub) ClosePRs(ctx context.Context, ids ...string) ([]string, error) {
+func (gh *GitHub) ClosePRs(ctx context.Context, ids ...string) error {
 	if ids == nil || len(ids) == 0 {
-		return nil, fmt.Errorf("no PR ids have been specified")
+		return fmt.Errorf("no PR ids have been specified")
 	}
 
 	var mutation struct {
@@ -185,13 +211,28 @@ func (gh *GitHub) ClosePRs(ctx context.Context, ids ...string) ([]string, error)
 		} `graphql:"closePullRequest(input: {pullRequestId: $input})"`
 	}
 
-	var out []string
+	ec := make(chan error, len(ids))
+	var wg sync.WaitGroup
+	wg.Add(len(ids))
+	go func() {
+		wg.Wait()
+		close(ec)
+	}()
+
 	for _, id := range ids {
-		if err := gh.clientV4.Mutate(ctx, &mutation, githubv4.Input(id), nil); err != nil {
-			return out, err
-		}
-		out = append(out, mutation.ClosePullRequest.Typename)
+		go func(identifier string) {
+			reqErr := gh.clientV4.Mutate(ctx, &mutation, githubv4.Input(identifier), nil)
+			if reqErr != nil {
+				ec <- fmt.Errorf("unable to close PR: %v. error: %v", identifier, reqErr)
+			}
+			wg.Done()
+		}(id)
 	}
 
-	return out, nil
+	var err error
+	for e := range ec {
+		err = errors.Join(e)
+	}
+
+	return err
 }

@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"github.com/pcanilho/gh-tidy/cmd"
-	"log"
+	"os"
 )
 
 func main() {
 	if err := cmd.Execute(); err != nil {
-		log.Fatalln(err)
+		_, _ = fmt.Fprint(os.Stderr, err, "\n")
+		os.Exit(1)
 	}
 }

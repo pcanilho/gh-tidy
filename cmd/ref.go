@@ -60,8 +60,7 @@ var deleteRefCmd = &cobra.Command{
 				os.Exit(0)
 			}
 		}
-		_, err = ghApi.DeleteRefs(cmd.Context(), toDeleteIds...)
-		if err != nil {
+		if err = ghApi.DeleteRefs(cmd.Context(), toDeleteIds...); err != nil {
 			return fmt.Errorf("unable to delete [refs=%v]. error: %v%v", refs, err)
 		}
 
@@ -71,5 +70,5 @@ var deleteRefCmd = &cobra.Command{
 }
 
 func init() {
-	deleteRefCmd.PersistentFlags().StringArrayVar(&refs, "ref", nil, "The provided ref(s) to be deleted")
+	deleteRefCmd.PersistentFlags().StringArrayVar(&refs, "ref", nil, "The provided ref(s) to be deleted. Only branch or tag name or are supported")
 }

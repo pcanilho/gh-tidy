@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/pcanilho/gh-tidy/api"
 	"github.com/pcanilho/gh-tidy/helpers"
-	"github.com/pcanilho/gh-tidy/models"
 	"github.com/spf13/cobra"
 	"strings"
 	"time"
@@ -21,7 +21,7 @@ var stalePrsCmd = &cobra.Command{
 		if len(args) < 1 {
 			return fmt.Errorf("at least one <owner>/<repository> needs to be provided")
 		}
-		view := make(map[string][]*models.GitHubPR)
+		view := make(map[string][]*api.GitHubPR)
 		for _, repo := range args {
 			if len(owner) == 0 && strings.Contains(repo, "/") {
 				composite := strings.Split(repo, "/")
@@ -39,7 +39,7 @@ var stalePrsCmd = &cobra.Command{
 			view[repo] = prs
 		}
 		for repo, prs := range view {
-			var filteredBranches []*models.GitHubPR
+			var filteredBranches []*api.GitHubPR
 			for _, pr := range prs {
 				if pr.LastCommitDate.Before(time.Now().Add(-staleThreshold)) {
 					filteredBranches = append(filteredBranches, pr)
@@ -61,7 +61,7 @@ var stalePrsCmd = &cobra.Command{
 		if out == nil {
 			return fmt.Errorf("not results found")
 		}
-		view := out.(map[string][]*models.GitHubPR)
+		view := out.(map[string][]*api.GitHubPR)
 		if remove {
 			for repo, prs := range view {
 				if !force {
@@ -71,11 +71,12 @@ var stalePrsCmd = &cobra.Command{
 					}
 				}
 
+				var ids []string
 				for _, pr := range prs {
-					_, err := ghApi.ClosePRs(cmd.Context(), pr.Id)
-					if err != nil {
-						return fmt.Errorf("unable to delete PR[%d]: %v -> %v. error: %v", pr.Number, pr.Source, pr.Target, err)
-					}
+					ids = append(ids, pr.Id)
+				}
+				if err := ghApi.ClosePRs(cmd.Context(), ids...); err != nil {
+					return err
 				}
 			}
 		}

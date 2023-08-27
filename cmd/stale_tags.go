@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/pcanilho/gh-tidy/api"
 	"github.com/pcanilho/gh-tidy/helpers"
-	"github.com/pcanilho/gh-tidy/models"
 	"github.com/spf13/cobra"
 	"strings"
 	"time"
@@ -18,7 +17,7 @@ var staleTagsCmd = &cobra.Command{
 		if len(args) < 1 {
 			return fmt.Errorf("at least one <owner>/<repository> needs to be provided")
 		}
-		view := make(map[string][]*models.GitHubRef)
+		view := make(map[string][]*api.GitHubRef)
 		for _, repo := range args {
 			if len(owner) == 0 && strings.Contains(repo, "/") {
 				composite := strings.Split(repo, "/")
@@ -37,7 +36,7 @@ var staleTagsCmd = &cobra.Command{
 		}
 
 		for repo, tags := range view {
-			var filteredTags []*models.GitHubRef
+			var filteredTags []*api.GitHubRef
 			for _, tag := range tags {
 				if excludeRegex != nil && excludeRegex.MatchString(tag.Name) {
 					continue
@@ -60,7 +59,7 @@ var staleTagsCmd = &cobra.Command{
 		if out == nil {
 			return fmt.Errorf("no results found")
 		}
-		view := out.(map[string][]*models.GitHubRef)
+		view := out.(map[string][]*api.GitHubRef)
 		if remove {
 			for repo, tags := range view {
 				if !force {
@@ -70,8 +69,7 @@ var staleTagsCmd = &cobra.Command{
 				}
 
 				for _, tag := range tags {
-					_, err := ghApi.DeleteRefs(cmd.Context(), tag.Id)
-					if err != nil {
+					if err := ghApi.DeleteRefs(cmd.Context(), tag.Id); err != nil {
 						return fmt.Errorf("unable to delete tags: %v. error: %v", tag.Name, err)
 					}
 				}
