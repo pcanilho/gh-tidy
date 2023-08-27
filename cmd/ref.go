@@ -61,7 +61,7 @@ var deleteRefCmd = &cobra.Command{
 			}
 		}
 		if err = ghApi.DeleteRefs(cmd.Context(), toDeleteIds...); err != nil {
-			return fmt.Errorf("unable to delete [refs=%v]. error: %v%v", refs, err)
+			return fmt.Errorf("unable to delete [refs=%v]. error: %v", refs, err)
 		}
 
 		out = fmt.Sprintf("Deleted [refs=%v] with [ids=%v]\n", refs, toDeleteIds)

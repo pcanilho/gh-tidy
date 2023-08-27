@@ -5,33 +5,101 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/go-github/github"
+	"github.com/pcanilho/gh-tidy/helpers"
 	"github.com/shurcooL/githubv4"
-	"golang.org/x/oauth2"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
 )
 
+const _defaultWorkerCount = 20
+
 type GitHub struct {
-	clientV3 *github.Client
-	clientV4 *githubv4.Client
+	enterpriseEndpoint string
+	clientV3           *github.Client
+	clientV4           *githubv4.Client
+
+	httpClient  *http.Client
+	context     context.Context
+	workerCount int
 }
 
-func NewSession() (*GitHub, error) {
+type Option = func(*GitHub)
+
+func WithHttpClient(httpClient *http.Client) Option {
+	return func(session *GitHub) {
+		session.httpClient = httpClient
+	}
+}
+
+func WithContext(ctx context.Context) Option {
+	return func(session *GitHub) {
+		session.context = ctx
+	}
+}
+
+func WithEnterpriseEndpoint(enterpriseEndpoint string) Option {
+	return func(session *GitHub) {
+		session.enterpriseEndpoint = enterpriseEndpoint
+	}
+}
+
+func WithWorkerCount(workerCount int) Option {
+	return func(session *GitHub) {
+		session.workerCount = workerCount
+	}
+}
+
+func NewSession(opts ...Option) (*GitHub, error) {
+	inst := new(GitHub)
+	for _, opt := range opts {
+		opt(inst)
+	}
+
+	if inst.context == nil {
+		inst.context = context.Background()
+	}
+
+	if inst.workerCount == 0 {
+		inst.workerCount = _defaultWorkerCount
+	}
+
 	token := os.Getenv("GITHUB_TOKEN")
 	if len(strings.TrimSpace(token)) == 0 {
 		return nil, fmt.Errorf("a GITHUB_TOKEN environment variable needs to be set")
 	}
 
-	ctx := context.Background()
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: token},
-	)
-	tc := oauth2.NewClient(ctx, ts)
-	return &GitHub{clientV3: github.NewClient(tc), clientV4: githubv4.NewClient(tc)}, nil
+	if inst.httpClient == nil {
+		ghRoundTripper, err := helpers.NewGitHubRoundTripper(inst.context, token)
+		if err != nil {
+			return nil, err
+		}
+		inst.httpClient = ghRoundTripper.OauthClient
+	}
+	if len(inst.enterpriseEndpoint) != 0 {
+		clientV3, err := github.NewEnterpriseClient(inst.enterpriseEndpoint, inst.enterpriseEndpoint, inst.httpClient)
+		if err != nil {
+			return nil, err
+		}
+		inst.clientV3 = clientV3
+		inst.clientV4 = githubv4.NewEnterpriseClient(inst.enterpriseEndpoint, inst.httpClient)
+	} else {
+		inst.clientV3 = github.NewClient(inst.httpClient)
+		inst.clientV4 = githubv4.NewClient(inst.httpClient)
+	}
+	return inst, nil
 }
 func (gh *GitHub) ListPRs(ctx context.Context, states []string, owner, repo string) ([]*GitHubPR, error) {
+	if len(owner) == 0 {
+		return nil, fmt.Errorf("an owner must be specified")
+	}
+
+	if len(repo) == 0 {
+		return nil, fmt.Errorf("a repo must be specified")
+	}
+
 	var query struct {
 		Repository struct {
 			PullRequests struct {
@@ -103,6 +171,14 @@ const (
 )
 
 func (gh *GitHub) ListRefs(ctx context.Context, owner, repo string, refType RefType) ([]*GitHubRef, error) {
+	if len(owner) == 0 {
+		return nil, fmt.Errorf("an owner must be specified")
+	}
+
+	if len(repo) == 0 {
+		return nil, fmt.Errorf("a repo must be specified")
+	}
+
 	var query struct {
 		Repository struct {
 			Refs struct {
@@ -176,20 +252,25 @@ func (gh *GitHub) DeleteRefs(ctx context.Context, refs ...string) error {
 	}
 
 	ec := make(chan error, len(refs))
+	sem := make(chan struct{}, gh.workerCount)
+
 	var wg sync.WaitGroup
 	wg.Add(len(refs))
 	go func() {
 		wg.Wait()
 		close(ec)
+		close(sem)
 	}()
 
 	for _, ref := range refs {
+		sem <- struct{}{}
 		go func(r string) {
 			reqErr := gh.clientV4.Mutate(ctx, &mutation, githubv4.Input(r), nil)
 			if reqErr != nil {
 				ec <- fmt.Errorf("unable to delete ref: %v. error: %v", r, reqErr)
 			}
 			wg.Done()
+			<-sem
 		}(ref)
 	}
 
@@ -212,26 +293,31 @@ func (gh *GitHub) ClosePRs(ctx context.Context, ids ...string) error {
 	}
 
 	ec := make(chan error, len(ids))
+	sem := make(chan struct{}, gh.workerCount)
+
 	var wg sync.WaitGroup
 	wg.Add(len(ids))
 	go func() {
 		wg.Wait()
 		close(ec)
+		close(sem)
 	}()
 
 	for _, id := range ids {
+		sem <- struct{}{}
 		go func(identifier string) {
 			reqErr := gh.clientV4.Mutate(ctx, &mutation, githubv4.Input(identifier), nil)
 			if reqErr != nil {
 				ec <- fmt.Errorf("unable to close PR: %v. error: %v", identifier, reqErr)
 			}
 			wg.Done()
+			<-sem
 		}(id)
 	}
 
 	var err error
 	for e := range ec {
-		err = errors.Join(e)
+		err = errors.Join(err, e)
 	}
 
 	return err

@@ -65,7 +65,7 @@ var stalePrsCmd = &cobra.Command{
 		if remove {
 			for repo, prs := range view {
 				if !force {
-					if !helpers.Prompt(fmt.Sprintf("Close [%d] PRs in repo [%v]?", repo, len(prs))) {
+					if !helpers.Prompt(fmt.Sprintf("Close [%d] PRs in repo [%v]?", len(prs), repo)) {
 						fmt.Println("cancelled...")
 						return nil
 					}
