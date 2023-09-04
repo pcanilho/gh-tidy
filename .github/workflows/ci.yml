@@ -2,6 +2,7 @@ name: ci
 on:
   push:
     branches: [ '**' ]
+  workflow_call:
 jobs:
   tests:
     runs-on: ubuntu-latest
