@@ -3,6 +3,8 @@
 [![CI: Tests](https://github.com/pcanilho/gh-tidy/workflows/ci/badge.svg)](https://github.com/pcanilho/gh-tidy/actions?query=ci)
 [![CD: Release](https://github.com/pcanilho/gh-tidy/workflows/release/badge.svg)](https://github.com/pcanilho/gh-tidy/actions?query=release)
 
+<img src="https://github.com/pcanilho/gh-tidy/docs/logo.png" width="92">
+
 The `gh-tidy` project is a tiny & simple extension for the standard `gh` cli that aims at offering tidy/cleanup operations on existing `refs`
 (in either `branch`, `tag` or `PR` format) by providing rules, such as `stale` status based on HEAD commit date for a given branch, tag, PR activity and others.
 
