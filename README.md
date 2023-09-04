@@ -1,22 +1,40 @@
 # GitHub `tidy` 🧹extension
 
-[![Actions Status: Release](https://github.com/pcanilho/gh-tidy/workflows/release/badge.svg)](https://github.com/pcanilho/gh-tidy/actions?query=release)
+[![CI: Tests](https://github.com/pcanilho/gh-tidy/workflows/ci/badge.svg)](https://github.com/pcanilho/gh-tidy/actions?query=ci)
+[![CD: Release](https://github.com/pcanilho/gh-tidy/workflows/release/badge.svg)](https://github.com/pcanilho/gh-tidy/actions?query=release)
 
-The `gh-tidy` project is an extension for the standard `gh` cli that aims at offering tidy/cleanup operations on existing `refs`
-(in either `branch` or `PR` format) by providing rules, such as `stale` status based on last commit date for a given branch, PR activity and others.
+The `gh-tidy` project is a tiny & simple extension for the standard `gh` cli that aims at offering tidy/cleanup operations on existing `refs`
+(in either `branch`, `tag` or `PR` format) by providing rules, such as `stale` status based on HEAD commit date for a given branch, tag, PR activity and others.
 
-🚀 This project is entirely built upon GitHub's `graphql` API offered via the https://github.com/shurcooL/githubv4 project.
+🚀 Supports:
+* **Enterprise** and **Public** GitHub API endpoints are supported.
+* **Automatic authentication** using the environment variable `GITHUB_TOKEN`.
+* **Automatic** GitHub API **limit handling** where requests are restarted after the `X-RateLimit-Reset` timer expires.
+* **Automatic** API **batching** to avoid unnecessary collisions with the internal API (_defaults to `20`_).
+* **Listing** & **Deletion** of branches with a stale HEAD commit based on time duration.
+* **Listing** & **Deletion** of tags with a stale commit based on time duration.
+* **Closing** of PRs with a stale branch HEAD commit based on time duration & PR state.
+
+ℹ️ This is a utility project that I have been extending when needed on a best-effort basis. Feel free to contribute with a PR
+or open an Issue on GitHub!
+
+📝 TODOs (for lack of time...):
+* API:
+  * Support GitHub APP `pem` direct authentication.
+* [stale] Branches:
+  * Support optional detected if the provided branch has already been merged to the repository default branch.
 
 ---
 
-## Using `gh-tidy`
-0. <ins>Expose</ins> a `GITHUB_TOKEN` environment variable with `repo:read` privileges or `repo:write` if you wish to use the `Delete` features. (*)
+## Using `gh-tidy` 
+_...**locally** or through a CI system like **Jenkins**, **GitHub actions** or any other..._
+0. <ins>Expose</ins> a `GITHUB_TOKEN` environment variable with `repo:read` privileges or `repo:admin` if you wish to use the `delete` features. (*)
 1. <ins>Install</ins> the `gh` cli available [here](https://github.com/cli/cli#installation).
 2. <ins>Install</ins> the extension:
     ```shell
     $ gh extension install pcanilho/gh-tidy
     ```
-   or <ins>upgrade</ins> to `latest` version:
+   or <ins>upgrade</ins> to the `latest` version:
     ```shell
     $ gh extension upgrade pcanilho/gh-tidy
     ```
@@ -25,7 +43,7 @@ The `gh-tidy` project is an extension for the standard `gh` cli that aims at off
    $ gh tidy --help
    ```
 
-\* This can be a `PAT`, a GitHub App installation `access_token` or any other format compatible with the `oauth2.StaticTokenSource` OAuth2 client.
+\* This can be a `PAT`, a GitHub App installation `access_token` or any other format that allows API access via `Bearer` token.
 
 **Note**: Authentication through direct GitHub App PEM is not (yet) supported.
 ### Usage

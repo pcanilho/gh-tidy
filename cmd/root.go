@@ -23,15 +23,28 @@ var (
 	excludePattern string
 	excludeRegex   *regexp.Regexp
 	refs           []string
-	owner          string
-	format         string
 	remove         bool
-	force          bool
+)
+
+var (
+	owner         string
+	format        string
+	force         bool
+	timed         bool
+	workerCount   int
+	enterpriseUrl string
+)
+
+var (
+	startTime = time.Now()
 )
 
 var rootCmd = &cobra.Command{
-	Use: "gh-tidy",
-	Example: `# direnv allow || read -s GITHUB_TOKEN; export GITHUB_TOKEN
+	Use: "tidy",
+	Example: `$ direnv allow || read -s GITHUB_TOKEN; export GITHUB_TOKEN
+# Omitting the '--rm' flag runs the command in 'dry-run' mode with the exception of 'delete' command
+
+$ gh tidy stale branches <owner/repo> -t 72h
 $ gh tidy stale branches <owner/repo> -t 72h
 $ gh tidy stale prs      <owner/repo> -t 72h -s OPEN -s MERGED
 $ gh tidy stale tags     <owner/repo> -t 72h
@@ -56,7 +69,10 @@ $ gh tidy delete         <owner/repo> -t 72h --ref <branch_name> --ref <tag_name
 		}
 
 		// Internal :: Session
-		ghApi, err = api.NewSession()
+		ghApi, err = api.NewSession(
+			api.WithEnterpriseEndpoint(enterpriseUrl),
+			api.WithContext(cmd.Context()),
+			api.WithWorkerCount(workerCount))
 		if err != nil {
 			return err
 		}
@@ -71,6 +87,10 @@ $ gh tidy delete         <owner/repo> -t 72h --ref <branch_name> --ref <tag_name
 			return fmt.Errorf("[INTERNAL] unable to serialise output. Error: %v", err)
 		}
 		fmt.Println(string(content))
+
+		if timed {
+			fmt.Printf("\nruntime: %v\n", time.Since(startTime))
+		}
 		return nil
 	},
 }
@@ -89,6 +109,9 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&format, "format", "json", "The desired output format. Supported values are: yaml, json")
 	rootCmd.PersistentFlags().BoolVar(&remove, "rm", false, "If specified, this flag enable the removal mode of the correlated sub-command")
 	rootCmd.PersistentFlags().BoolVarP(&force, "force", "f", false, "If specified, all interactive operations will be disabled")
+	rootCmd.PersistentFlags().BoolVar(&timed, "timed", false, "If specified, the total execution time will be printed")
+	rootCmd.PersistentFlags().IntVar(&workerCount, "worker-count", 20, "The amount of concurrent workers carrying out internal tasks like ref. deletion & PR closing")
+	rootCmd.PersistentFlags().StringVar(&enterpriseUrl, "enterprise", "", "If provided, the GitHub Enterprise API endpoint will be used instead")
 
 	staleCmd.PersistentFlags().DurationVarP(&staleThreshold, "threshold", "t", time.Hour*24*7*4, "The stale threshold value. [1 month]")
 

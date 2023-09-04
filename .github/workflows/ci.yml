@@ -1,0 +1,11 @@
+name: ci
+on:
+  push:
+    branches: [ '**' ]
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          go test ./... -test.v
