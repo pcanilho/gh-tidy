@@ -1,4 +1,4 @@
-# GitHub `tidy` <img src="https://github.com/pcanilho/gh-tidy/blob/main/docs/logo.png?raw=true" width="92"> extension 
+# <img src="https://github.com/pcanilho/gh-tidy/blob/main/docs/logo.png?raw=true" width="60"> GitHub `tidy` extension
 
 [![CI: Tests](https://github.com/pcanilho/gh-tidy/workflows/ci/badge.svg)](https://github.com/pcanilho/gh-tidy/actions?query=ci)
 [![CD: Release](https://github.com/pcanilho/gh-tidy/workflows/release/badge.svg)](https://github.com/pcanilho/gh-tidy/actions?query=release)
