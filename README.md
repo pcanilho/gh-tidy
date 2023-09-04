@@ -28,6 +28,7 @@ or open an Issue on GitHub!
 
 ## Using `gh-tidy` 
 _...**locally** or through a CI system like **Jenkins**, **GitHub actions** or any other..._
+
 0. <ins>Expose</ins> a `GITHUB_TOKEN` environment variable with `repo:read` privileges or `repo:admin` if you wish to use the `delete` features. (*)
 1. <ins>Install</ins> the `gh` cli available [here](https://github.com/cli/cli#installation).
 2. <ins>Install</ins> the extension:
