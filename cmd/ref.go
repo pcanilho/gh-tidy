@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 	"github.com/pcanilho/gh-tidy/api"
-	"github.com/pcanilho/gh-tidy/helpers"
+	"github.com/pcanilho/gh-tidy/api/helpers"
 	"github.com/spf13/cobra"
 	"os"
 	"strings"

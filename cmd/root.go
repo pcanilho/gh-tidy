@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 	"github.com/pcanilho/gh-tidy/api"
-	"github.com/pcanilho/gh-tidy/output"
+	"github.com/pcanilho/gh-tidy/api/helpers"
 	"github.com/spf13/cobra"
 	"regexp"
 	"strings"
@@ -13,7 +13,7 @@ import (
 // internal
 var (
 	ghApi      *api.GitHub
-	serializer output.Serializer
+	serializer helpers.Serializer
 	out        any
 )
 
@@ -52,10 +52,10 @@ $ gh tidy delete         <owner/repo> -t 72h --ref <branch_name> --ref <tag_name
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) (err error) {
 		// Format
 		switch strings.TrimSpace(strings.ToLower(format)) {
-		case output.JSON:
-			serializer = new(output.JsonSerializer)
-		case output.YAML:
-			serializer = new(output.YamlSerializer)
+		case helpers.JSON:
+			serializer = new(helpers.JsonSerializer)
+		case helpers.YAML:
+			serializer = new(helpers.YamlSerializer)
 		default:
 			return fmt.Errorf("the provided format [%v] is not supported", format)
 		}

@@ -1,6 +1,7 @@
 name: ci
 on:
   push:
+    paths-ignore: [ 'docs/**' ]
     branches: [ '**' ]
   workflow_call:
 jobs:

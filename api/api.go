@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/go-github/github"
-	"github.com/pcanilho/gh-tidy/helpers"
+	"github.com/pcanilho/gh-tidy/api/helpers"
 	"github.com/shurcooL/githubv4"
 	"net/http"
 	"os"
